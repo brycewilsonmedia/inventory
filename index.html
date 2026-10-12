@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>The Second Watch Podcast — Inventory</title>
+  <title>The Second Watch Podcast — Shirt Inventory</title>
   <meta name="description" content="Live shirt inventory for The Second Watch Podcast. See what's in stock and what's out of stock.">
   <meta name="author" content="The Second Watch Podcast">
   <meta property="og:type" content="website">
@@ -187,6 +187,60 @@
       font-size: .9rem;
     }
 
+
+    /* ordering */
+    button.size { font: inherit; color: inherit; background: transparent; cursor: pointer; width: 100%; }
+    button.size:hover { border-color: var(--brass); }
+    button.size:focus-visible, .btn:focus-visible, .step:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid var(--brass); outline-offset: 2px; }
+    .size.picked { background: var(--ink); border-color: var(--ink); }
+    .size.picked .label, .size.picked .qty { color: var(--bg); }
+    .size .inorder { display: block; font-size: .72rem; line-height: 1; margin-top: 2px; min-height: .72rem; color: var(--bg); }
+    .hint { margin: 14px 0 0; color: var(--muted); font-size: .95rem; }
+
+    .order { border-top: 2px solid var(--ink); padding: 40px 0 72px; max-width: 640px; }
+    .order h2.title { font-family: var(--font-display); font-weight: 700; font-size: 2.6rem; line-height: 1; margin: 0 0 16px; }
+    .empty { color: var(--muted); margin: 0 0 8px; }
+    .lines { list-style: none; margin: 0 0 8px; padding: 0; }
+    .line { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 12px 0; border-bottom: 1px solid var(--line); align-items: center; }
+    .line .what { font-weight: 600; }
+    .line .what small { display: block; font-weight: 400; color: var(--muted); }
+    .line .price { text-align: right; }
+    .stepper { display: inline-flex; align-items: center; gap: 8px; }
+    .step { width: 34px; height: 34px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 4px; font-size: 1.1rem; cursor: pointer; }
+    .step:disabled { opacity: .4; cursor: not-allowed; }
+    .remove { background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; font: inherit; font-size: .9rem; padding: 4px; }
+    .total { display: flex; justify-content: space-between; font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; padding: 14px 0 20px; }
+
+    .fields { display: grid; gap: 14px; }
+    label.f { display: grid; gap: 4px; font-weight: 600; font-size: .95rem; }
+    label.f span.opt { font-weight: 400; color: var(--muted); }
+    input, textarea {
+      font: inherit; color: var(--ink); background: var(--surface);
+      border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; width: 100%;
+    }
+    textarea { min-height: 84px; resize: vertical; }
+    .btn {
+      margin-top: 18px; font-family: var(--font-display); font-weight: 700; font-size: 1.4rem;
+      background: var(--ink); color: var(--bg); border: 0; border-radius: 4px;
+      padding: 12px 28px; cursor: pointer;
+    }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--ink); font-size: 1.1rem; padding: 8px 18px; margin-top: 10px; }
+    .status { margin: 14px 0 0; font-weight: 500; }
+    .status.err { color: var(--out); }
+    .status.ok { color: var(--ok); }
+    pre.summary-text { white-space: pre-wrap; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 12px; font: inherit; font-size: .95rem; margin: 12px 0 0; }
+
+    .bar {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+      display: flex; justify-content: space-between; align-items: center;
+      background: var(--ink); color: var(--bg); text-decoration: none;
+      padding: 14px 20px calc(14px + env(safe-area-inset-bottom, 0px));
+      font-weight: 600;
+    }
+    .bar[hidden] { display: none; }
+    .bar .go { font-family: var(--font-display); font-size: 1.2rem; }
+
     a:focus-visible { outline: 3px solid var(--brass); outline-offset: 2px; }
   </style>
 </head>
@@ -201,8 +255,37 @@
 
   <div class="wrap">
     <div class="summary" id="summary" aria-live="polite"></div>
+    <p class="hint">Tap an available size to add it to your order.</p>
     <main class="grid" id="grid"></main>
+
+    <section class="order" id="order" aria-labelledby="order-title">
+      <h2 class="title" id="order-title">Your order</h2>
+      <p class="empty" id="empty">Nothing added yet. Pick a size above to start.</p>
+      <ul class="lines" id="lines"></ul>
+      <div class="total" id="total" hidden><span>Total</span><span id="total-amt">$0</span></div>
+
+      <div class="fields">
+        <label class="f">Your name
+          <input id="f-name" autocomplete="name" required>
+        </label>
+        <label class="f">Email or phone
+          <input id="f-contact" autocomplete="email" required>
+        </label>
+        <label class="f">Notes <span class="opt">(optional)</span>
+          <textarea id="f-notes" placeholder="Pickup details, questions, anything we should know"></textarea>
+        </label>
+        <input id="f-website" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
+      </div>
+      <button class="btn" id="submit" type="button" disabled>Place order</button>
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+      <div id="fallback" hidden>
+        <pre class="summary-text" id="summary-text"></pre>
+        <button class="btn ghost" id="copy" type="button">Copy order</button>
+      </div>
+    </section>
   </div>
+
+  <a class="bar" id="bar" href="#order" hidden><span id="bar-text"></span><span class="go">View order</span></a>
 
   <footer>
     <div class="wrap">Sizes marked with a dash are out of stock. Counts show units on hand.</div>
@@ -212,6 +295,7 @@
     // Edit this list to update the inventory. Use null for sold-out sizes.
     // Items with LOW stock are flagged automatically when total units fall to LOW_THRESHOLD or below.
     var UPDATED = "2026-10-11";
+    var updatedLabel = UPDATED, updatedISO = UPDATED;
     var LOW_THRESHOLD = 10;
 
     var IMAGES = {
@@ -222,25 +306,25 @@
     };
     var PRODUCTS = [
       {
-        name: "Classic Logo Tee", color: "Black", hex: "#111", price: 15,
+        name: "Classic Logo Tee", color: "Black", hex: "#111", price: 25,
         image: IMAGES.classic,
         desc: "The original Second Watch logo tee on soft black cotton.",
         sizes: { S: null, M: null, L: 1, XL: null, "2XL": null }
       },
       {
-        name: "Second Watch Polo", color: "Black", hex: "#111", price: 25,
+        name: "Second Watch Polo", color: "Black", hex: "#111", price: 38,
         image: IMAGES.polo,
         desc: "Black pique polo with the Second Watch microphone print on the chest.",
         sizes: { S: null, M: null, L: null, XL: null, "2XL": null }
       },
       {
-        name: "Second Watch Hoodie", color: "Black", hex: "#111", price: 35,
+        name: "Second Watch Hoodie", color: "Black", hex: "#111", price: 55,
         image: IMAGES.hoodie,
         desc: "Heavyweight black pullover hoodie with drawcord hood and chest print.",
         sizes: { S: null, M: null, L: null, XL: null, "2XL": null }
       },
       {
-        name: "Second Watch Trucker Cap", color: "Black", hex: "#111", price: 12,
+        name: "Second Watch Trucker Cap", color: "Black", hex: "#111", price: 28,
         image: IMAGES.cap,
         desc: "Black trucker cap with the full Second Watch logo stitched on the front.",
         sizes: { "One size": null }
@@ -263,14 +347,14 @@
     }
 
     function render() {
-      document.getElementById("updated").textContent = UPDATED;
-      document.getElementById("updated").setAttribute("datetime", UPDATED);
+      document.getElementById("updated").textContent = updatedLabel;
+      document.getElementById("updated").setAttribute("datetime", updatedISO);
 
       var grid = document.getElementById("grid");
       var counts = { in: 0, low: 0, out: 0 };
       var units = 0;
 
-      grid.innerHTML = PRODUCTS.map(function (p) {
+      grid.innerHTML = PRODUCTS.map(function (p, pi) {
         var st = status(p);
         counts[st.key]++;
         units += st.total;
@@ -284,11 +368,13 @@
           var q = p.sizes[k];
           var gone = !q;
           var cls = gone ? "size gone" : (q <= 3 ? "size low" : "size");
-          return '<div class="' + cls + '">' +
+          var open = gone ? '<div class="' + cls + '">'
+            : '<button type="button" class="' + cls + '" data-i="' + pi + '" data-size="' + esc(k) + '" aria-label="Add ' + esc(p.name + ", size " + k) + ' to order">';
+          return open +
             '<span class="label">' + esc(k) + '</span>' +
             '<span class="qty">' + (gone ? "&mdash;" : q) + '</span>' +
-            (gone ? '<span class="visually-hidden" hidden>Out of stock</span>' : "") +
-            '</div>';
+            (gone ? "" : '<span class="inorder"></span>') +
+            (gone ? '</div>' : '</button>');
         }).join("");
 
         return '<article class="item">' +
@@ -310,7 +396,259 @@
         '<span><strong>' + counts.out + '</strong> out of stock</span>';
     }
 
-    render();
+    if (!STOCK_URL) render();
+
+    // ---------- Ordering ----------
+    // Where finished orders go. Set ONE of these:
+    //  - FORM_ENDPOINT: a Formspree (formspree.io) or similar form URL; orders are sent there.
+    //  - ORDER_EMAIL: opens the customer's email app with the order filled in.
+    // Live stock + orders (Google Sheet). Paste your Apps Script Web app URL here.
+    // When set, the page loads stock from your sheet and each order subtracts from it.
+    var STOCK_URL = "";
+    // Max of any one item per order (also enforced by the sheet script).
+    var MAX_PER_ITEM = 2;
+
+    // Backup options, only used when STOCK_URL is empty:
+    var FORM_ENDPOINT = "https://formspree.io/f/mnpjzlng";
+    var ORDER_EMAIL = "thesecondwatchpod@gmail.com";
+
+    var cart = {}; // "productIndex|size" -> quantity
+
+    function $(id) { return document.getElementById(id); }
+    function money(n) { return "$" + n; }
+
+    function cartEntries() {
+      return Object.keys(cart).filter(function (k) { return cart[k] > 0; }).map(function (k) {
+        var parts = k.split("|");
+        var p = PRODUCTS[+parts[0]];
+        return { key: k, p: p, size: parts[1], qty: cart[k], max: Math.min(MAX_PER_ITEM, p.sizes[parts[1]] || 0) };
+      });
+    }
+
+    function orderTotal(entries) {
+      return entries.reduce(function (sum, e) { return sum + e.p.price * e.qty; }, 0);
+    }
+
+    function updateCart() {
+      var entries = cartEntries();
+      var count = entries.reduce(function (n, e) { return n + e.qty; }, 0);
+
+      $("empty").hidden = entries.length > 0;
+      $("total").hidden = entries.length === 0;
+      $("total-amt").textContent = money(orderTotal(entries));
+      $("submit").disabled = entries.length === 0;
+
+      $("lines").innerHTML = entries.map(function (e) {
+        return '<li class="line">' +
+          '<div class="what">' + esc(e.p.name) + '<small>' + esc(e.p.color) + ' &middot; ' + esc(e.size) + '</small></div>' +
+          '<div class="price">' + money(e.p.price * e.qty) + '</div>' +
+          '<div class="stepper">' +
+            '<button type="button" class="step" data-act="dec" data-key="' + esc(e.key) + '" aria-label="Remove one">&minus;</button>' +
+            '<span aria-label="Quantity">' + e.qty + '</span>' +
+            '<button type="button" class="step" data-act="inc" data-key="' + esc(e.key) + '" aria-label="Add one"' + (e.qty >= e.max ? " disabled" : "") + '>+</button>' +
+          '</div>' +
+          '<button type="button" class="remove" data-act="del" data-key="' + esc(e.key) + '">Remove</button>' +
+        '</li>';
+      }).join("");
+
+      // reflect picks on the size buttons
+      Array.prototype.forEach.call(document.querySelectorAll("button.size"), function (b) {
+        var q = cart[b.getAttribute("data-i") + "|" + b.getAttribute("data-size")] || 0;
+        b.classList.toggle("picked", q > 0);
+        b.querySelector(".inorder").textContent = q > 0 ? q + " in order" : "";
+      });
+
+      var bar = $("bar");
+      bar.hidden = count === 0;
+      $("bar-text").textContent = count + (count === 1 ? " item" : " items") + " \u00b7 " + money(orderTotal(entries));
+      document.body.style.paddingBottom = count === 0 ? "" : "64px";
+    }
+
+    function orderText() {
+      var entries = cartEntries();
+      var lines = entries.map(function (e) {
+        return e.qty + " x " + e.p.name + " (" + e.p.color + ", " + e.size + ") - " + money(e.p.price * e.qty);
+      });
+      var notes = $("f-notes").value.trim();
+      return "New order\n\n" + lines.join("\n") + "\n\nTotal: " + money(orderTotal(entries)) +
+        "\n\nName: " + $("f-name").value.trim() +
+        "\nContact: " + $("f-contact").value.trim() +
+        (notes ? "\nNotes: " + notes : "");
+    }
+
+    function setStatus(msg, kind) {
+      var el = $("status");
+      el.textContent = msg;
+      el.className = "status" + (kind ? " " + kind : "");
+    }
+
+    function clearOrder() {
+      cart = {};
+      $("f-notes").value = "";
+      updateCart();
+    }
+
+    document.addEventListener("click", function (ev) {
+      var size = ev.target.closest && ev.target.closest("button.size");
+      if (size) {
+        var key = size.getAttribute("data-i") + "|" + size.getAttribute("data-size");
+        var stock = Math.min(MAX_PER_ITEM, PRODUCTS[+size.getAttribute("data-i")].sizes[size.getAttribute("data-size")] || 0);
+        if ((cart[key] || 0) < stock) cart[key] = (cart[key] || 0) + 1;
+        $("fallback").hidden = true;
+        setStatus("");
+        updateCart();
+        return;
+      }
+      var act = ev.target.closest && ev.target.closest("[data-act]");
+      if (act) {
+        var k = act.getAttribute("data-key");
+        var a = act.getAttribute("data-act");
+        var parts = k.split("|");
+        var max = Math.min(MAX_PER_ITEM, PRODUCTS[+parts[0]].sizes[parts[1]] || 0);
+        if (a === "inc" && (cart[k] || 0) < max) cart[k] = (cart[k] || 0) + 1;
+        if (a === "dec") cart[k] = (cart[k] || 0) - 1;
+        if (a === "del" || cart[k] <= 0) delete cart[k];
+        updateCart();
+      }
+    });
+
+    $("submit").addEventListener("click", function () {
+      var name = $("f-name").value.trim();
+      var contact = $("f-contact").value.trim();
+      if (!cartEntries().length) return;
+      if (!name || !contact) {
+        setStatus("Add your name and an email or phone number so we can reach you.", "err");
+        (name ? $("f-contact") : $("f-name")).focus();
+        return;
+      }
+      var text = orderText();
+      $("fallback").hidden = true;
+
+      if (STOCK_URL) {
+        $("submit").disabled = true;
+        setStatus("Placing your order...");
+        fetch(STOCK_URL, {
+          method: "POST",
+          // plain text keeps this a "simple" request, which Google Apps Script accepts from other sites
+          body: JSON.stringify({
+            name: name,
+            contact: contact,
+            notes: $("f-notes").value.trim(),
+            total: money(orderTotal(cartEntries())),
+            order: text,
+            website: $("f-website").value,
+            items: cartEntries().map(function (e) { return { product: e.p.name, size: e.size, qty: e.qty }; })
+          })
+        }).then(function (r) { return r.json(); }).then(function (d) {
+          if (d.stock) applyStock(d.stock);
+          if (d.ok) {
+            clearOrder();
+            setStatus("Order placed! Thanks, " + name + ". We'll contact you at " + contact + " to confirm.", "ok");
+          } else {
+            $("submit").disabled = cartEntries().length === 0;
+            setStatus(d.error || "That order couldn't be placed. Please try again.", "err");
+          }
+        }).catch(function () {
+          $("submit").disabled = false;
+          setStatus("Couldn't reach the store. Copy your order below and send it to us directly.", "err");
+          $("summary-text").textContent = text;
+          $("fallback").hidden = false;
+        });
+        return;
+      }
+
+      if (FORM_ENDPOINT) {
+        $("submit").disabled = true;
+        setStatus("Sending your order...");
+        fetch(FORM_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Accept": "application/json" },
+          body: JSON.stringify((function () {
+            var data = {
+              _subject: "Shirt order from " + name,
+              name: name,
+              contact: contact,
+              total: money(orderTotal(cartEntries())),
+              notes: $("f-notes").value.trim(),
+              order: text
+            };
+            // If they gave an email, let Formspree use it as the reply-to address.
+            if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact)) data.email = contact;
+            return data;
+          })())
+        }).then(function (r) {
+          if (!r.ok) throw new Error("bad response");
+          clearOrder();
+          setStatus("Order sent. Thanks, " + name + "! We'll be in touch at " + contact + ".", "ok");
+        }).catch(function () {
+          $("submit").disabled = false;
+          setStatus("The order didn't send. Copy it below and send it to us directly.", "err");
+          $("summary-text").textContent = text;
+          $("fallback").hidden = false;
+        });
+      } else if (ORDER_EMAIL) {
+        window.location.href = "mailto:" + ORDER_EMAIL +
+          "?subject=" + encodeURIComponent("Shirt order from " + name) +
+          "&body=" + encodeURIComponent(text);
+        setStatus("Your email app should open with the order filled in. Press send to finish.", "ok");
+        $("summary-text").textContent = text;
+        $("fallback").hidden = false;
+      } else {
+        setStatus("Online ordering isn't connected yet. Copy your order below and send it to us.", "err");
+        $("summary-text").textContent = text;
+        $("fallback").hidden = false;
+      }
+    });
+
+    $("copy").addEventListener("click", function () {
+      var text = $("summary-text").textContent;
+      function done() { $("copy").textContent = "Copied"; setTimeout(function () { $("copy").textContent = "Copy order"; }, 2000); }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () {});
+      } else {
+        var r = document.createRange(); r.selectNodeContents($("summary-text"));
+        var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+        try { document.execCommand("copy"); done(); } catch (e) {}
+      }
+    });
+
+    updateCart();
+
+    // ---------- Live stock from the Google Sheet ----------
+    function applyStock(stock) {
+      PRODUCTS.forEach(function (p) {
+        var row = stock[p.name];
+        if (!row) return;
+        Object.keys(p.sizes).forEach(function (size) {
+          var n = Number(row[size]);
+          p.sizes[size] = n > 0 ? n : null;
+        });
+      });
+      // trim anything in the cart that is no longer available
+      Object.keys(cart).forEach(function (key) {
+        var parts = key.split("|");
+        var max = Math.min(MAX_PER_ITEM, PRODUCTS[+parts[0]].sizes[parts[1]] || 0);
+        if (max <= 0) delete cart[key];
+        else if (cart[key] > max) cart[key] = max;
+      });
+      var now = new Date();
+      updatedLabel = now.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+      updatedISO = now.toISOString();
+      render();
+      updateCart();
+    }
+
+    if (STOCK_URL) {
+      $("grid").innerHTML = '<p class="hint">Loading live stock...</p>';
+      fetch(STOCK_URL).then(function (r) { return r.json(); }).then(function (d) {
+        if (!d.ok) throw new Error("bad data");
+        applyStock(d.stock);
+      }).catch(function () {
+        render();
+        updateCart();
+        $("summary").insertAdjacentHTML("beforeend", "<span>Couldn't load live stock. Showing last known numbers.</span>");
+      });
+    }
   </script>
 </body>
 </html>
