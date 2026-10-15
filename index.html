@@ -560,9 +560,9 @@ $("submit").addEventListener("click", function () {
         }).then(function (r) { return r.json(); }).then(function (d) {
           if (d.stock) applyStock(d.stock);
           if (d.ok) {
-            clearOrder();
-            setStatus("Order placed! Thanks, " + name + ". We'll contact you at " + contact + " to confirm.", "ok");
-          } else {
+  clearOrder();
+  setStatus("Order received! Thanks, " + name + ". We'll contact you at " + contact + " to confirm.", "ok");
+} else {
             $("submit").disabled = cartEntries().length === 0;
             setStatus(d.error || "That order couldn't be placed. Please try again.", "err");
           }
